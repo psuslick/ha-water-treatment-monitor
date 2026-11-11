@@ -173,3 +173,21 @@ def test_import_floor_rejects_future_timestamp():
         a=dbmod.Archive(f'{t}/wtm.db');a.initialize()
         with pytest.raises(ValueError,match='future'):
             a.initialize_import_floor('binary_sensor.demo_well_pump',future)
+
+
+def test_ph_sample_is_durable_audited_and_not_limited_by_chart_range():
+    """DB keeps backdated pH records independently of dashboard date filters."""
+    with TemporaryDirectory() as temp:
+        archive=dbmod.Archive(f"{temp}/monitor.db")
+        archive.initialize()
+        sampled=ts("2025-09-21T12:00:00-04:00")
+        result=archive.mutate_record(
+            "ph_tests","create",
+            {"sampled":sampled,"location":"treated","ph":7.26,
+             "notes":"Entered via helper pH button"},None,"home_assistant:ph_button")
+        assert result["ok"] and result["id"] > 0
+        assert archive.list_records("ph_tests",sampled-1,sampled+1)[0]["ph"] == 7.26
+        assert archive.list_records("ph_tests",sampled+86400,sampled+2*86400) == []
+        assert archive.count()["ph_tests"] == 1
+        audits=archive.list_records("audit_log")
+        assert any(row["table_name"]=="ph_tests" and row["actor"]=="home_assistant:ph_button" for row in audits)

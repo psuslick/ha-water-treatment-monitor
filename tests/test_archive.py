@@ -110,3 +110,36 @@ def test_ordinary_anomaly_and_daily_empty_days():
     assert len(a['ordinary_anomalies'])==1
     assert len(a['daily'])>=4
     assert a['ordinary_baseline']['median_seconds']==110
+
+
+def test_duplicate_effective_schedule_refuses_without_data_loss():
+    """RC5 duplicate form submission must not overwrite the first saved revision."""
+    import pytest
+    with TemporaryDirectory() as t:
+        archive=dbmod.Archive(f'{t}/monitor.sqlite3');archive.initialize()
+        values={'equipment':'softener','effective':1_793_747_520,'start_time':'01:30',
+                'duration_min':71,'stage_min':10,'cadence':'demand','interval_days':1,
+                'anchor_date':None,'weekdays':'','notes':'Controller settings'}
+        ident=archive.mutate_record('schedules','create',values,None,'user')['id']
+        with pytest.raises(ValueError,match='Refresh the dashboard and use Edit'):
+            archive.mutate_record('schedules','create',values,None,'user')
+        saved=archive.list_records('schedules')
+        assert len(saved)==1 and saved[0]['id']==ident
+        assert saved[0]['duration_min']==71
+        assert len(archive.list_records('audit_log'))==1
+        correction={**values,'duration_min':72,'updated':saved[0]['updated']}
+        archive.mutate_record('schedules','update',correction,ident,'user')
+        assert archive.list_records('schedules')[0]['duration_min']==72
+        assert len(archive.list_records('audit_log'))==2
+
+
+def test_dispatcher_callbacks_explicitly_run_on_ha_event_loop():
+    """HA dispatch considers undecorated synchronous callbacks executor jobs."""
+    import ast
+    tree=ast.parse((DIR/'sensor.py').read_text())
+    classes=[n for n in tree.body if isinstance(n,ast.ClassDef) and n.name in {'WaterStat','WaterHealth'}]
+    assert len(classes)==2
+    for cls in classes:
+        methods=[n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='_refresh_scheduled']
+        assert len(methods)==1
+        assert any(isinstance(d,ast.Name) and d.id=='callback' for d in methods[0].decorator_list)

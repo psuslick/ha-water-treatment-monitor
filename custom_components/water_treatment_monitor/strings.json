@@ -16,5 +16,20 @@
     "error": {
       "invalid_timestamp": "Enter ISO 8601 with a timezone, e.g. 2026-01-01T12:00:00-05:00"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Existing pH helper button (optional)",
+        "description": "Choose both helpers to make your existing Record pH button save a FINAL TREATED water measurement into the durable archive. Set the pH value first, then press the button. Leave BOTH blank to use only the Water Treatment dashboard form. The existing helper value may still be its default (4.0); verify it before recording.",
+        "data": {
+          "ph_button": "Record pH button (optional)",
+          "ph_value": "pH numeric input helper (optional)"
+        }
+      }
+    },
+    "error": {
+      "both_ph_helpers_required": "Select BOTH a pH button and a pH numeric value, or leave BOTH blank."
+    }
   }
 }

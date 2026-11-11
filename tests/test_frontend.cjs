@@ -41,3 +41,60 @@ console.log('Frontend smoke test passed: all five views, controls, pH rendering,
   assert.equal(c.edit,undefined);
   console.log('Frontend regression tests passed: dirty form protection, conflict preservation, quality editor');
 })().catch(e=>{console.error(e);process.exitCode=1});
+
+// Regression: RC5 left a successful schedule form focused/stale, leading to
+// a second CREATE and UNIQUE(equipment,effective) instead of a visible row.
+(async()=>{
+  const k=new cls();k.attachShadow();k.setConfig({});
+  k.tab='schedules';k.range=1;k.data={...c.data,schedules:[]};k._hass=c._hass;
+  k._formDirty=true;k.edit=null;k.busy=false;
+  const focus={closest(){return {}},blur(){k.shadowRoot.activeElement=null}};
+  k.shadowRoot.activeElement=focus;
+  k.render();
+  const before=k.shadowRoot.innerHTML;
+  let writes=0,resolveWrite;
+  const gate=new Promise(done=>{resolveWrite=done});
+  k.call=async(type)=>{
+    if(type==='mutate'){writes++;await gate;return {ok:true,id:6};}
+    if(type==='get')return {...k.data,schedules:[{id:6,equipment:'softener',effective:1794382320,start_time:'01:30',
+      cadence:'demand',duration_min:71,stage_min:10,interval_days:1,anchor_date:null,weekdays:'',notes:'',updated:1794382320}]};
+    throw new Error(`Unexpected ${type}`);
+  };
+  const first=k.mutate('schedules','create',{},undefined);
+  const duplicate=k.mutate('schedules','create',{},undefined);
+  resolveWrite();
+  await Promise.all([first,duplicate]);
+  assert.equal(writes,1,'Duplicate in-flight clicks must not write twice');
+  assert.notEqual(k.shadowRoot.innerHTML,before,'Success must replace stale form/history');
+  assert.match(k.shadowRoot.innerHTML,/>softener</);
+  assert.match(k.shadowRoot.innerHTML,/>01:30</);
+  assert.equal(k._formDirty,false);
+  assert.equal(k._mutationPending,false);
+  console.log('Frontend RC6 regression passed: focused success refreshes, simultaneous submits deduplicated');
+})().catch(e=>{console.error(e);process.exitCode=1});
+
+// Regression: RC5 pH errors appeared under the adjacent manual-backwash form.
+(async()=>{
+  const p=new cls();p.setConfig({});p.attachShadow();p.tab='entries';p.range=1;
+  p.data={...c.data,tests:[],manual:[]};p._hass=c._hass;p.edit=null;p._formDirty=true;p.busy=false;
+  let targetSelector='',alertHTML='';
+  p.shadowRoot.querySelector=(selector)=>{
+    targetSelector=selector;
+    return {querySelector(){return {remove(){}}},insertAdjacentHTML(_where,html){alertHTML=html}};
+  };
+  p._showFormError('Invalid pH value','ph_tests');
+  assert.equal(targetSelector,'form[data-form="ph_tests"]');
+  assert.match(alertHTML,/Invalid pH value/);
+  p._formDirty=false;p.shadowRoot.querySelector=()=>null;
+  p.call=async(type)=>{
+    if(type==='mutate')return {ok:true,id:99};
+    if(type==='get')return {...p.data,tests:[{id:99,sampled:1690000000,location:'treated',ph:7.26,notes:'',updated:1700000000}]};
+  };
+  await p.mutate('ph_tests','create',{sampled:1690000000,location:'treated',ph:7.26});
+  assert.equal(p._mutationPending,false);
+  assert.equal(p.error,'');
+  assert.match(p.notice,/pH 7\.26 \(treated\) saved to the permanent archive/);
+  assert.match(p.notice,/outside the selected analysis range/); // historical sample outside 24-hour range
+  assert.match(p.shadowRoot.innerHTML,/pH 7\.26/);
+  console.log('Frontend RC6 pH regression passed: correct form errors, persistent save confirmation, out-of-range notice');
+})().catch(e=>{console.error(e);process.exitCode=1});

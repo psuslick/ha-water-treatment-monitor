@@ -311,10 +311,28 @@ class Archive:
                     after.setdefault("interval_days",1)
                 after["updated"]=time.time()
                 if operation=="create":
+                    if table=="schedules":
+                        existing=db.execute(
+                            "SELECT id FROM schedules WHERE equipment=? AND effective=?",
+                            (after["equipment"],after["effective"]),
+                        ).fetchone()
+                        if existing:
+                            raise ValueError(
+                                "A schedule revision for this equipment and effective time already "
+                                "exists. Refresh the dashboard and use Edit on the existing record."
+                            )
                     after["created"]=after["updated"]
                     keys=list(after)
                     placeholders=','.join('?' for _ in keys)
-                    cur=db.execute(f"INSERT INTO {table} ({','.join(keys)}) VALUES ({placeholders})",tuple(after.values()))
+                    try:
+                        cur=db.execute(f"INSERT INTO {table} ({','.join(keys)}) VALUES ({placeholders})",tuple(after.values()))
+                    except sqlite3.IntegrityError as err:
+                        if table=="schedules" and "UNIQUE constraint failed" in str(err):
+                            raise ValueError(
+                                "A schedule revision already exists at that effective time. "
+                                "Refresh and use Edit; nothing was overwritten."
+                            ) from err
+                        raise
                     row_id=cur.lastrowid
                 else:
                     # Reject stale concurrent edits rather than silently overwrite a newer entry.

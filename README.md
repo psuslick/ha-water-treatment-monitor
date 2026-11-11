@@ -1,6 +1,6 @@
 # Water Treatment Monitor
 
-**v2.0.0 RC5 — HACS repository candidate — observational only, not production-verified.**
+**v2.0.0 RC6 — HACS repository candidate — observational only, not production-verified.**
 
 A local Home Assistant integration for tracking individual well-pump cycles, recording versions of softener and neutralizer regeneration schedules, comparing *expected* backwash windows with observed pump behavior, and logging pH samples.
 
@@ -60,3 +60,9 @@ water_treatment_dashboard.yaml
 ```
 
 All publishing and installation steps are graphical; **you do not run setup scripts or terminal commands**. The `tests/` directory is for GitHub-hosted automated validation only. This is a pre-release developer build. Standalone tests, compilation and packaging checks are useful but do **not** prove Home Assistant runtime compatibility or safe years-long retention. No change to any existing HA installation is implied by this repository.
+
+### Existing pH input-button helper (optional, RC6)
+
+The Water Treatment card has its own independent timestamped pH entry form. A pre-existing Home Assistant input_button only records its press timestamp unless something listens for it. To enable it as an alternative entry path without an automation or YAML: select a button helper and numeric pH input together under **Water Treatment Monitor → Configure**. A button press records a **treated-water** pH sample with timestamp and audit entry. Configure no helpers to disable this path. Changing options reloads the integration; the database is preserved.
+
+Errors in the dashboard pH form display next to the pH form; successful saves show explicit confirmation even when the historical sample is outside the selected chart range.

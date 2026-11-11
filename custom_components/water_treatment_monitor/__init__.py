@@ -31,6 +31,8 @@ class Monitor:
         self.hass=hass
         self.entry=entry
         self.pump_entity=entry.data["pump_entity"]
+        self.ph_button=entry.options.get("ph_button")
+        self.ph_value=entry.options.get("ph_value")
         self.archive=Archive(hass.config.path(DB_FILENAME))
         self.write_lock=asyncio.Lock()
         self.last_error=None
@@ -47,7 +49,31 @@ class Monitor:
 
     @callback
     def on_event(self,event) -> None:
-        if event.data.get("entity_id")!=self.pump_entity:
+        entity_id=event.data.get("entity_id")
+        if self.ph_button and self.ph_value and entity_id==self.ph_button:
+            before=event.data.get("old_state")
+            after=event.data.get("new_state")
+            # input_button.press changes the timestamp state; startup/restoration
+            # must never create a fabricated pH sample.
+            if not before or not after or before.state==after.state or after.state in ("unknown","unavailable"):
+                return
+            reading=self.hass.states.get(self.ph_value)
+            try:
+                ph=float(reading.state) if reading else float("nan")
+            except (TypeError,ValueError):
+                ph=float("nan")
+            if not (0 <= ph <= 14):
+                self.last_error="pH helper button pressed, but selected pH helper has no valid 0–14 value. Nothing saved."
+                _LOGGER.warning(self.last_error)
+                return
+            # Capture the value immediately so later slider changes cannot alter
+            # which measurement this particular button press records.
+            self.entry.async_create_background_task(
+                self.hass,self.record_ph_helper(after.last_changed.timestamp(),round(ph,2)),
+                "water_treatment_ph_helper_record"
+            )
+            return
+        if entity_id!=self.pump_entity:
             return
         before=event.data.get("old_state")
         after=event.data.get("new_state")
@@ -59,6 +85,22 @@ class Monitor:
         reliable=bool(state=="on" and before and before.state=="off")
         # A background task is scoped to the config entry and never blocks HA event loop.
         self.entry.async_create_background_task(self.hass,self.record_edge(after.last_changed.timestamp(),state,reliable),"water_treatment_record_edge")
+
+    async def record_ph_helper(self,when:float,ph:float):
+        """Durably capture an explicitly pressed legacy helper as treated water."""
+        try:
+            async with self.write_lock:
+                await self.hass.async_add_executor_job(
+                    self.archive.mutate_record,"ph_tests","create",
+                    {"sampled":when,"location":"treated","ph":ph,
+                     "notes":"Captured from configured Home Assistant pH helper button"},
+                    None,"home_assistant:ph_button"
+                )
+            self.last_error=None
+            async_dispatcher_send(self.hass,SIGNAL_UPDATE)
+        except Exception:
+            _LOGGER.exception("pH helper button sample could not be stored")
+            self.last_error="pH helper button could not save reading; review Home Assistant logs"
 
     async def record_edge(self,when:float,state:str,reliable:bool):
         try:

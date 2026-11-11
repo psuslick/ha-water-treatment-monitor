@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.core import callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.util import dt as dt_util
@@ -34,7 +35,9 @@ class WaterStat(SensorEntity):
         self.async_on_remove(async_dispatcher_connect(self.hass,SIGNAL_UPDATE,self._refresh_scheduled))
         await self._refresh()
 
+    @callback
     def _refresh_scheduled(self):
+        """Dispatcher listener runs on the Home Assistant event loop."""
         self.hass.async_create_task(self._refresh())
 
     async def _refresh(self):
@@ -67,7 +70,9 @@ class WaterHealth(SensorEntity):
         self.async_on_remove(async_dispatcher_connect(self.hass,SIGNAL_UPDATE,self._refresh_scheduled))
         await self._refresh()
 
+    @callback
     def _refresh_scheduled(self):
+        """Dispatcher listener runs on the Home Assistant event loop."""
         self.hass.async_create_task(self._refresh())
 
     async def _refresh(self):

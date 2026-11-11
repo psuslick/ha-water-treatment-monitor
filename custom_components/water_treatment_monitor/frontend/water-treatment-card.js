@@ -1,4 +1,4 @@
-/* Water Treatment Monitor 2.0.0 RC4 — independent local dashboard component.
+/* Water Treatment Monitor 2.0.0 RC6 — independent local dashboard component.
    No CDN; data via authenticated HA WebSocket; never controls any equipment. */
 const WTM_NS='http://www.w3.org/2000/svg';
 const WTM_COLORS={ordinary:'#38a3ba',expected:'#798ced',manual:'#ce9a66',excluded:'#777e8d',mixed:'#a27ed3',pump:'#e26e72',softener:'#798ced',neutralizer:'#39a77e'};
@@ -20,7 +20,7 @@ class WaterTreatmentCard extends HTMLElement {
     if(this._connected)return;this._connected=true;
     if(!this._initialized){
       this.tab='overview';this.range=1;this.customStart=Date.now()/1000-7*86400;this.customEnd=Date.now()/1000;
-      this.edit=null;this.busy=false;this.data=null;this._formDirty=false;this._initialized=true;
+      this.edit=null;this.busy=false;this.data=null;this._formDirty=false;this.notice='';this._initialized=true;
     }
     if(!this.shadowRoot)this.attachShadow({mode:'open'});
     if(!this._handlersBound){
@@ -36,10 +36,12 @@ class WaterTreatmentCard extends HTMLElement {
   getCardSize(){return 14;}
   _shouldHoldForm(){return this._formDirty || !!this.shadowRoot?.activeElement?.closest?.('form[data-form]')}
   _unsavedOkay(){return !this._formDirty || confirm('Discard unsaved Water Treatment changes?')}
-  _showFormError(message){
+  _showFormError(message,table){
     const root=this.shadowRoot;
     if(!root)return;
-    const form=root.querySelector?.('form[data-form]');
+    // The entries view has TWO forms. Errors must appear on the form that
+    // failed, not silently under the unrelated manual-backwash form.
+    const form=root.querySelector?.(`form[data-form="${table}"]`);
     if(form?.insertAdjacentHTML){
       form.querySelector?.('.wtm-form-error')?.remove();
       form.insertAdjacentHTML('afterbegin',`<div class="alert bad wtm-form-error" style="grid-column:1/-1">${esc(message)}</div>`);
@@ -69,7 +71,8 @@ button{border:1px solid var(--wtm-line);border-radius:8px;background:var(--secon
   rangePicker(){return `<div class="controls"><span class="hint">Analysis range</span><select id="range" style="width:auto">${[[1,'24 hours'],[7,'7 days'],[30,'30 days'],[90,'90 days'],[365,'1 year'],[1825,'5 years'],[0,'Custom dates']].map(([n,label])=>`<option value="${n}" ${this.range===n?'selected':''}>${label}</option>`).join('')}</select>${this.range===0?`<label>From <input id="range-from" type="datetime-local" value="${localInput(this.customStart)}"></label><label>To <input id="range-to" type="datetime-local" value="${localInput(this.customEnd)}"></label><button data-action="apply-range">Apply</button>`:''}<button data-action="refresh">Refresh</button></div>`}
   status(){const state=this._hass?.states[this.data?.source_entity]?.state||this.data?.pump_state||'unavailable';const a=this.data?.archive||{};return `<span class="pill ${state==='on'?'on':state==='off'?'off':'bad'}">Well pump: ${esc(state.toUpperCase())}</span><span class="pill ${a.health?.ok?'on':'bad'}">Archive: ${a.health?.ok?'healthy':'check error'}</span>`}
   render(){if(!this.shadowRoot)return;let html=this.styles()+`<ha-card><div class="shell"><div class="top"><div><div class="title">Water Treatment</div><div class="sub">Historic pump evidence, expected treatment windows and editable water-quality records</div></div><div class="controls">${this.data?this.status():''}</div></div>`;
-    if(this.error)html+=`<div class="alert bad">${esc(this.error)}. Check integration setup and logs.</div>`;
+    if(this.error)html+=`<div class="alert bad" role="alert">${esc(this.error)}. Check integration setup and logs.</div>`;
+    if(this.notice)html+=`<div class="alert" role="status" aria-live="polite">${esc(this.notice)}</div>`;
     if(this.data){html+=this.nav()+this.rangePicker();if(this.tab==='overview')html+=this.overview();if(this.tab==='analysis')html+=this.analysis();if(this.tab==='schedules')html+=this.schedules();if(this.tab==='entries')html+=this.entries();if(this.tab==='archive')html+=this.archive();}else html+=`<div class="panel">${this.busy?'Reading the archive and Recorder backfill…':'No data received yet. Install/configure the Water Treatment Monitor integration first.'}</div>`;
     this.shadowRoot.innerHTML=html+'</div></ha-card>';
   }
@@ -182,22 +185,58 @@ button{border:1px solid var(--wtm-line);border-radius:8px;background:var(--secon
   }
   change(e){if(e.target?.closest?.('form[data-form]'))this._formDirty=true;if(e.target?.id==='range'){this.range=Number(e.target.value);if(this.range===0)this.render();else this.refresh();}}
   async submit(e){const form=e.target.closest('form[data-form]');if(!form)return;e.preventDefault();const table=form.dataset.form;const vals=Object.fromEntries(new FormData(form));
-    for(const key of ['effective','started','ended','sampled'])if(vals[key])vals[key]=new Date(vals[key]).getTime()/1000;
+    for(const key of ['effective','started','ended','sampled'])if(vals[key]){
+      vals[key]=new Date(vals[key]).getTime()/1000;
+      if(!Number.isFinite(vals[key])){this._showFormError(`Invalid ${key} date/time`,table);return}
+    }
     if(table==='schedules'){vals.start_time=vals.start_time.slice(0,5);vals.duration_min=Number(vals.duration_min);vals.stage_min=Number(vals.stage_min);vals.interval_days=Number(vals.interval_days)}
     if(table==='manual_runs')vals.duration_min=Number(vals.duration_min);
-    if(table==='ph_tests')vals.ph=Number(vals.ph);
+    if(table==='ph_tests'){
+      vals.ph=Number(vals.ph);
+      if(!Number.isFinite(vals.ph) || vals.ph<0 || vals.ph>14){
+        this._showFormError('Enter a valid measured pH value from 0 through 14.',table);return;
+      }
+    }
     const edit=this.edit?.table===table?this.edit.record:null;
     if(edit){vals.updated=edit.updated}
     await this.mutate(table,edit?'update':'create',vals,edit?.id);
   }
-  async mutate(table,operation,values,record_id){try{
-    this.busy=true;
-    const payload={table,operation,values};if(record_id!=null)payload.record_id=record_id;
-    await this.call('mutate',payload);
-    this._formDirty=false;this.edit=null;this.error='';
-    await this.refresh(false);
-  }catch(err){this.error=String(err?.message||err);this._showFormError(this.error)}
-  finally{this.busy=false;if(!this._shouldHoldForm())this.render()}}
+  async mutate(table,operation,values,record_id){
+    // De-duplicate rapid clicks while the same write is still awaiting HA.
+    if(this._mutationPending)return;
+    this._mutationPending=true;
+    try{
+      this.busy=true;
+      const payload={table,operation,values};if(record_id!=null)payload.record_id=record_id;
+      const result=await this.call('mutate',payload);
+      this._formDirty=false;this.edit=null;this.error='';
+      if(table==='ph_tests' && operation!=='delete'){
+        const when=values.sampled;
+        const outside=Number.isFinite(when) && this.data?.selected &&
+          (when<this.data.selected.start || when>this.data.selected.end);
+        this.notice=`pH ${Number(values.ph).toFixed(2)} (${values.location}) saved to the permanent archive${result?.id?' as record #'+result.id:''}.`+
+          (outside?' This sample is outside the selected analysis range; expand the range to see it on the graph.':'');
+      }else if(table==='ph_tests' && operation==='delete'){
+        this.notice='pH sample deleted from the active record store; its prior content remains in the audit log.';
+      }else if(table==='schedules'){
+        this.notice='Schedule revision saved. The history table has been refreshed.';
+      }else if(table==='manual_runs'){
+        this.notice='Manual backwash record saved. The history table has been refreshed.';
+      }else{
+        this.notice='Archive record saved.';
+      }
+      // A successful write MUST replace the obsolete form, even if Submit
+      // retains keyboard focus. RC5 wrongly kept the stale form and invited a
+      // second CREATE that violated UNIQUE(equipment,effective).
+      this.shadowRoot?.activeElement?.blur?.();
+      await this.refresh(false);
+      this.render();
+    }catch(err){this.error=String(err?.message||err);this._showFormError(this.error,table)}
+    finally{
+      this._mutationPending=false;this.busy=false;
+      if(!this._shouldHoldForm())this.render();
+    }
+  }
   async perform(name,args={}){try{this.busy=true;const result=await this.call(name,args);this.error='';if(name==='backup')alert(`SQLite snapshot created: ${result.path}. Copy this file off the HA device for disaster recovery.`);await this.refresh(false);}catch(err){this.error=String(err?.message||err)}finally{this.busy=false;this.render()}}
 }
 customElements.define('water-treatment-monitor-card',WaterTreatmentCard);

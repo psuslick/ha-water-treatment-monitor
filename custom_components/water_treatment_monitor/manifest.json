@@ -1,7 +1,7 @@
 {
   "domain": "water_treatment_monitor",
   "name": "Water Treatment Monitor",
-  "version": "2.0.0rc5",
+  "version": "2.0.0rc6",
   "documentation": "https://github.com/psuslick/ha-water-treatment-monitor",
   "issue_tracker": "https://github.com/psuslick/ha-water-treatment-monitor/issues",
   "codeowners": [
