@@ -17,7 +17,7 @@ A local Home Assistant integration for tracking individual well-pump cycles, rec
 
 ## HACS installation (no scripts)
 
-HACS only accepts a properly structured **public GitHub repository** for a custom repository. This deliverable is a **repository template**, not an already published repository. It includes two `REPLACE_WITH_OWNER` links to update in **GitHub’s web editor**, not with scripts; see [PUBLISHING.md](PUBLISHING.md).
+HACS only accepts a properly structured **public GitHub repository** for a custom repository. This deliverable is the repository source preconfigured for **https://github.com/psuslick/ha-water-treatment-monitor**. The repository upload, CI results, GitHub release, and HACS installation still need verification. No metadata edits or install scripts are required; see [PUBLISHING.md](PUBLISHING.md).
 
 1. In HACS, open the menu → **Custom repositories**. Add the real GitHub repository URL and choose **Integration**. Download the selected version. A prerelease may require enabling prerelease downloads. [HACS documentation](https://hacs.dev/docs/faq/custom_repositories/).
 2. Restart Home Assistant. Open **Settings → Devices & services → Add integration → Water Treatment Monitor**.

@@ -5,12 +5,12 @@
 ### Part A — Put the source on GitHub (one time)
 
 1. Extract the repository ZIP on Windows, then follow the [browser-only publishing guide](PUBLISHING.md). Upload the extracted **files and folders**, not the ZIP itself.
-2. In GitHub's web editor, replace the two `REPLACE_WITH_OWNER` values in `custom_components/water_treatment_monitor/manifest.json` with your actual GitHub account. Do not put personal HA data in the public repository.
+2. Repository metadata is **already set** to `psuslick/ha-water-treatment-monitor` (including code owner). No GitHub text edits or scripts are necessary. Do not put personal HA data in the public repository.
 3. Check GitHub **Actions** for completed green validation results. Publish GitHub pre-release tag `v2.0.0rc5` through **Releases**. Do not install if HACS/hassfest validation fails.
 
 ### Part B — Install through HACS / Marketplace (no scripts)
 
-1. In Home Assistant's **HACS** interface, open **Custom repositories** (or your version's **Marketplace → Add from link**) and paste your *published* GitHub repository URL. Choose **Integration** if prompted.
+1. In Home Assistant's **HACS** interface, open **Custom repositories** (or your version's **Marketplace → Add from link**) and paste `https://github.com/psuslick/ha-water-treatment-monitor` after the source has been uploaded. Choose **Integration** if prompted.
 2. Open **Water Treatment Monitor**, select **Download** and choose release `v2.0.0rc5` (turn on pre-release visibility if the selector requires it).
 3. Restart Home Assistant through its UI, then **Settings → Devices & services → Add integration → Water Treatment Monitor**.
 4. Select the existing pump binary sensor. Enter the **first reliably confirmed ON timestamp with its timezone offset**. Your personal values are supplied in the separate **private setup note**; do not publish that note on GitHub. This cutoff prevents the earlier magnet/contact tests from being imported.

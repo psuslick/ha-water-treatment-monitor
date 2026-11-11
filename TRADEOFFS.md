@@ -16,7 +16,7 @@
 ## Tradeoffs
 
 - A one-time **public GitHub browser upload** is still necessary because this repository has not yet been published. HACS cannot download the provided ZIP directly and cannot invent a GitHub repository address.
-- Without repository-personalization scripts, you must make **two simple text edits** in GitHub's **web editor** (replacing `REPLACE_WITH_OWNER` in the manifest's documentation/issue-tracker URLs). Neither is a command.
+- The repository URLs and public code owner are already set to `psuslick/ha-water-treatment-monitor`. **No setup scripts or metadata edits** are needed. A repository rename would require updating the manifest URLs.
 - Because script-based local checks were removed from the publish procedure, checking **GitHub Actions** is a release gate rather than an optional convenience. Green CI still does not prove live HA runtime behavior.
 - Dashboard YAML is a one-time UI import and is not updated automatically by HACS. Frontend JavaScript is bundled and upgrades with the integration.
 - Code and setup still require trust in a custom integration. HACS does **not** back up the archive or guarantee years of retention without verified off-device backups.

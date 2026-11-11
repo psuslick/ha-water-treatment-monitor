@@ -3,7 +3,7 @@
 ## GitHub/HACS repository (browser only; NOT YET VERIFIED)
 
 - [ ] The repo is **public** and has `hacs.json`, `README.md`, `.github/workflows/validate.yml`, and `custom_components/water_treatment_monitor/manifest.json` at their correct paths.
-- [ ] The two `REPLACE_WITH_OWNER` manifest links were edited using the GitHub webpage; the links open the published repository and issue tracker.
+- [ ] The prefilled manifest links open `psuslick/ha-water-treatment-monitor` and its issue tracker, and the code owner is `@psuslick`.
 - [ ] **Actions → Validate integration** is green for `local-tests`, `hacs` and `hassfest` on the published commit; these tests run remotely and require no local commands.
 - [ ] A GitHub prerelease `v2.0.0rc5` exists, and HACS recognizes it as an Integration custom repository.
 - [ ] Home Assistant restarts and the config flow loads; no install scripts or terminal steps were necessary.
