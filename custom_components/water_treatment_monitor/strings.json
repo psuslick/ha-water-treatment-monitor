@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Water Treatment Monitor",
+        "description": "Select a binary sensor that reports the pump's energized state. Optionally enter the timestamp of your FIRST reliably confirmed observation using ISO 8601 with UTC offset (for example, 2026-01-01T12:00:00-05:00). Earlier Recorder events will NOT be imported; leave blank only if all recoverable history is reliable. This integration never controls equipment.",
+        "data": {
+          "pump_entity": "Well pump running sensor",
+          "import_start": "Earliest reliable history (ISO 8601 with timezone; optional)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Water Treatment Monitor is already configured"
+    },
+    "error": {
+      "invalid_timestamp": "Enter ISO 8601 with a timezone, e.g. 2026-01-01T12:00:00-05:00"
+    }
+  }
+}

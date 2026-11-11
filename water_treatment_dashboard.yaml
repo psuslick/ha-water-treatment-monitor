@@ -1,0 +1,8 @@
+title: Water Treatment
+views:
+  - title: Water Treatment
+    path: overview
+    icon: mdi:water-check
+    type: panel
+    cards:
+      - type: custom:water-treatment-monitor-card

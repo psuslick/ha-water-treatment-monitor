@@ -1,0 +1,11 @@
+# Local state is never included in published integration code
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+water_treatment_snapshots/
+*.bak

@@ -1,0 +1,16 @@
+{
+  "domain": "water_treatment_monitor",
+  "name": "Water Treatment Monitor",
+  "version": "2.0.0rc5",
+  "documentation": "https://github.com/REPLACE_WITH_OWNER/water-treatment-monitor",
+  "issue_tracker": "https://github.com/REPLACE_WITH_OWNER/water-treatment-monitor/issues",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [
+    "http",
+    "recorder",
+    "websocket_api"
+  ],
+  "requirements": [],
+  "iot_class": "local_push"
+}
